@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umair Auto - Voice Edition</title>
+    <style>
+        :root { --brand-yellow: #FFD700; --brand-dark: #1a1a1a; --bg-light: #f4f7f6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-light); margin: 0; padding-bottom: 90px; }
+        
+        .app-header { background: var(--brand-yellow); color: var(--brand-dark); padding: 25px; text-align: center; border-radius: 0 0 30px 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { max-width: 500px; margin: auto; padding: 15px; }
+        .screen { display: none; animation: fadeIn 0.3s; }
+        .active-screen { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; }
+        
+        .input-wrapper { position: relative; margin: 10px 0; }
+        input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        
+        .mic-btn { 
+            position: absolute; right: 5px; top: 5px; 
+            background: var(--brand-yellow); border: none; 
+            border-radius: 8px; padding: 8px; cursor: pointer; 
+            transition: 0.3s; width: 40px; height: 35px;
+        }
+        .mic-listening { background: #ff4757 !important; color: white !important; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-main { background: var(--brand-dark); color: var(--brand-yellow); }
+        .btn-outline { background: #eee; color: #333; border: 1px solid #ccc; }
+
+        .list-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; border-left: 5px solid var(--brand-yellow); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px; border-top: 1px solid #ddd; }
+        .nav-btn { border: none; background: none; color: #888; font-size: 11px; cursor: pointer; }
+        .nav-btn.active { color: var(--brand-dark); font-weight: bold; }
+
+        .history-card { background: #fff; border-left: 5px solid #d63031; padding: 12px; margin-bottom: 10px; border-radius: 10px; font-size: 13px; }
+        .history-tag { background: #ffeaa7; color: #d63031; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header"><b>UMAIR AUTO SPARE PARTS</b></header>
+
+    <div class="container">
+        <div id="homeScreen" class="screen active-screen">
+            <div class="card">
+                <div class="input-wrapper">
+                    <input type="text" id="newCust" placeholder="Customer Name...">
+                    <button class="mic-btn" onclick="startVoice('newCust', event)">🎙️</button>
+                </div>
+                <button class="btn btn-main" onclick="createNewKhata()">KHOLEIN</button>
+            </div>
+            <div id="custDisplay"></div>
+        </div>
+
+        <div id="ledgerScreen" class="screen">
+            <button onclick="changeTab('home')" class="btn btn-outline" style="width:auto">← Back</button>
+            <div class="card" style="background:var(--brand-dark); color:white; margin-top:10px;">
+                <h3 id="activeName" style="margin:0; color:var(--brand-yellow)"></h3>
+                <small id="activeStartDate"></small>
+            </div>
+            <div class="card">
+                <div class="input-wrapper">
+                    <input type="text" id="pName" placeholder="Part Name...">
+                    <button class="mic-btn" onclick="startVoice('pName', event)">🎙️</button>
+                </div>
+                <input type="number" id="pPrice" placeholder="Price...">
+                <button class="btn btn-main" style="background:#27ae60; margin-top:10px;" onclick="addPartEntry()">SAVE</button>
+            </div>
+            <div id="entryDisplay"></div>
+            <div class="card" id="grandTotal" style="text-align:center; font-weight:bold; font-size:20px;"></div>
+        </div>
+
+        <div id="historyScreen" class="screen">
+            <h3>📜 Delete History</h3>
+            <div id="historyDisplay"></div>
+        </div>
+
+        <div id="settingsScreen" class="screen">
+            <h3>⚙️ Settings</h3>
+            <div class="card">
+                <button class="btn btn-outline" onclick="openSub('delKhata')">🗑️ Delete Full Khata</button>
+                <button class="btn btn-outline" onclick="openSub('delPart')" style="margin-top:10px">❌ Delete Single Entry</button>
+            </div>
+        </div>
+
+        <div id="delKhataScreen" class="screen">
+            <button onclick="changeTab('settings')" class="btn btn-outline" style="width:auto">← Back</button>
+            <div id="khataDelList"></div>
+        </div>
+
+        <div id="delPartScreen" class="screen">
+            <button onclick="changeTab('settings')" class="btn btn-outline" style="width:auto">← Back</button>
+            <div id="partCustList"></div>
+            <div id="partDetailList"></div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-home" onclick="changeTab('home')">🏠<br>HOME</button>
+        <button class="nav-btn" id="nav-history" onclick="changeTab('history')">📜<br>HISTORY</button>
+        <button class="nav-btn" id="nav-settings" onclick="changeTab('settings')">⚙️<br>SETTINGS</button>
+    </nav>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('umairAuto_v11')) || {};
+    let history = JSON.parse(localStorage.getItem('umairAuto_HistV11')) || [];
+    let activeCust = "";
+
+    function getNow() {
+        let d = new Date();
+        return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    // --- IMPROVED VOICE FUNCTION FOR APPS ---
+    function startVoice(id, event) {
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!window.SpeechRecognition) {
+            alert("Aapka phone voice typing support nahi karta. Google Chrome use karein.");
+            return;
+        }
+
+        const rec = new SpeechRecognition();
+        rec.lang = 'ur-PK'; 
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+
+        const micBtn = event.currentTarget;
+
+        rec.onstart = () => {
+            micBtn.classList.add('mic-listening');
+            document.getElementById(id).placeholder = "Bolye...";
+        };
+
+        rec.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            document.getElementById(id).value = transcript;
+            micBtn.classList.remove('mic-listening');
+        };
+
+        rec.onerror = (err) => {
+            micBtn.classList.remove('mic-listening');
+            console.error("Mic Error: ", err.error);
+            // WebView error handle karne ke liye alert
+            if(err.error === 'not-allowed') {
+                alert("APP SETTINGS mein ja kar Microphone ki permission ALLOW karein.");
+            } else {
+                alert("Mic Error: " + err.error);
+            }
+        };
+
+        rec.onend = () => {
+            micBtn.classList.remove('mic-listening');
+            document.getElementById(id).placeholder = "Name...";
+        };
+
+        // Try to start with error handling
+        try {
+            rec.start();
+        } catch (error) {
+            console.log("Recognition already started: ", error);
+            rec.stop();
+            setTimeout(() => rec.start(), 400);
+        }
+    }
+
+    function changeTab(t) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(t+'Screen').classList.add('active-screen');
+        const nav = document.getElementById('nav-'+t);
+        if(nav) nav.classList.add('active');
+        if(t==='home') renderHome();
+        if(t==='history') renderHistory();
+    }
+
+    function createNewKhata() {
+        let n = document.getElementById('newCust').value.trim();
+        if(!n) return;
+        if(!db[n]) { db[n] = { dateOpened: getNow(), entries: [] }; save(); }
+        openKhata(n);
+        document.getElementById('newCust').value = "";
+    }
+
+    function renderHome() {
+        let d = document.getElementById('custDisplay'); d.innerHTML = "";
+        Object.keys(db).forEach(n => {
+            d.innerHTML += `<div class="list-item" onclick="openKhata('${n}')"><b>${n}</b><span>❯</span></div>`;
+        });
+    }
+
+    function openKhata(n) {
+        activeCust = n;
+        document.getElementById('activeName').innerText = n;
+        document.getElementById('activeStartDate').innerText = "Started: " + db[n].dateOpened;
+        renderLedger();
+        changeTab('ledger');
+    }
+
+    function addPartEntry() {
+        let p = document.getElementById('pName').value.trim();
+        let pr = parseInt(document.getElementById('pPrice').value);
+        if(!p || !pr) return;
+        db[activeCust].entries.push({ id: Date.now(), p, pr, d: getNow() });
+        save();
+        document.getElementById('pName').value = ""; 
+        document.getElementById('pPrice').value = "";
+        renderLedger();
+    }
+
+    function renderLedger() {
+        let d = document.getElementById('entryDisplay'); d.innerHTML = "";
+        let t = 0;
+        if(db[activeCust]) {
+            db[activeCust].entries.forEach(e => {
+                t += e.pr;
+                d.innerHTML += `<div class="list-item"><span>${e.p}<br><small style="color:gray">${e.d}</small></span><b>${e.pr}/-</b></div>`;
+            });
+        }
+        document.getElementById('grandTotal').innerText = "TOTAL: " + t + "/-";
+    }
+
+    function openSub(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+        document.getElementById(id+'Screen').classList.add('active-screen');
+        if(id==='delKhata') renderKhataDel();
+        if(id==='delPart') renderPartCust();
+    }
+
+    function renderKhataDel() {
+        let d = document.getElementById('khataDelList'); d.innerHTML = "<h4>Select Khata to Delete</h4>";
+        Object.keys(db).forEach(n => {
+            d.innerHTML += `<div class="list-item"><b>${n}</b><button onclick="delFullKhata('${n}')" style="background:red; color:white; border:none; padding:5px; border-radius:5px;">DELETE</button></div>`;
+        });
+    }
+
+    function delFullKhata(n) {
+        if(confirm(`Kya aap ${n} ka record mita dena chahte hain?`)) {
+            db[n].entries.forEach(e => {
+                history.push({ ...e, cust: n, type: "FULL_DEL", delTime: getNow() });
+            });
+            delete db[n];
+            save();
+            renderKhataDel();
+        }
+    }
+
+    function renderPartCust() {
+        let d = document.getElementById('partCustList'); d.innerHTML = "<h4>Select Customer</h4>";
+        Object.keys(db).forEach(n => { d.innerHTML += `<button class="btn btn-outline" style="margin-bottom:5px" onclick="showPDel('${n}')">${n}</button>`; });
+    }
+
+    function showPDel(n) {
+        let d = document.getElementById('partDetailList'); d.innerHTML = `<h4>Items: ${n}</h4>`;
+        db[n].entries.forEach(e => {
+            d.innerHTML += `<div class="list-item"><span>${e.p} (${e.pr})</span><button onclick="delSingleEntry('${n}',${e.id})" style="color:red; background:none; border:none;">❌</button></div>`;
+        });
+    }
+
+    function delSingleEntry(n, id) {
+        if(confirm('Entry mitaein?')) {
+            let entry = db[n].entries.find(x => x.id === id);
+            history.push({ ...entry, cust: n, type: "SINGLE_DEL", delTime: getNow() });
+            db[n].entries = db[n].entries.filter(x => x.id !== id);
+            save();
+            showPDel(n);
+        }
+    }
+
+    function renderHistory() {
+        let d = document.getElementById('historyDisplay');
+        d.innerHTML = history.length === 0 ? "<p>Koi history nahi hai.</p>" : "";
+        history.slice().reverse().forEach(h => {
+            d.innerHTML += `<div class="history-card">
+                <span class="history-tag">${h.type}</span><br>
+                <b>Customer:</b> ${h.cust}<br>
+                <b>Item:</b> ${h.p} | <b>Price:</b> ${h.pr}/-<br>
+                <small>Added: ${h.d} | Deleted: ${h.delTime}</small>
+            </div>`;
+        });
+    }
+
+    function save() {
+        localStorage.setItem('umairAuto_v11', JSON.stringify(db));
+        localStorage.setItem('umairAuto_HistV11', JSON.stringify(history));
+    }
+    renderHome();
+</script>
+</body>
+</html>
