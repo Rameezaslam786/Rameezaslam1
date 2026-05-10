@@ -127,7 +127,7 @@
         }
 
         const rec = new SpeechRecognition();
-        rec.lang = 'en-US'; 
+        rec.lang = 'ur-PK'; 
         rec.interimResults = false;
         rec.maxAlternatives = 1;
 
@@ -239,58 +239,51 @@
             d.innerHTML += `<div class="list-item"><b>${n}</b><button onclick="delFullKhata('${n}')" style="background:red; color:white; border:none; padding:5px; border-radius:5px;">DELETE</button></div>`;
         });
     }
+<script>
+    const btn = document.getElementById('mic-btn'); // Apne mic button ki ID check kar lein
+    const input = document.getElementById('search-input'); // Apne input box ki ID check kar lein
 
-    function delFullKhata(n) {
-        if(confirm(`Kya aap ${n} ka record mita dena chahte hain?`)) {
-            db[n].entries.forEach(e => {
-                history.push({ ...e, cust: n, type: "FULL_DEL", delTime: getNow() });
-            });
-            delete db[n];
-            save();
-            renderKhataDel();
+    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    
+    // Default language Urdu rakhi hai
+    rec.lang = 'ur-PK'; 
+    rec.interimResults = true;
+
+    btn.onclick = () => {
+        try {
+            rec.start();
+        } catch (e) {
+            rec.stop();
         }
-    }
+    };
 
-    function renderPartCust() {
-        let d = document.getElementById('partCustList'); d.innerHTML = "<h4>Select Customer</h4>";
-        Object.keys(db).forEach(n => { d.innerHTML += `<button class="btn btn-outline" style="margin-bottom:5px" onclick="showPDel('${n}')">${n}</button>`; });
-    }
+    rec.onstart = () => {
+        btn.style.backgroundColor = "red";
+        console.log("Mic On...");
+    };
 
-    function showPDel(n) {
-        let d = document.getElementById('partDetailList'); d.innerHTML = `<h4>Items: ${n}</h4>`;
-        db[n].entries.forEach(e => {
-            d.innerHTML += `<div class="list-item"><span>${e.p} (${e.pr})</span><button onclick="delSingleEntry('${n}',${e.id})" style="color:red; background:none; border:none;">❌</button></div>`;
-        });
-    }
-
-    function delSingleEntry(n, id) {
-        if(confirm('Entry mitaein?')) {
-            let entry = db[n].entries.find(x => x.id === id);
-            history.push({ ...entry, cust: n, type: "SINGLE_DEL", delTime: getNow() });
-            db[n].entries = db[n].entries.filter(x => x.id !== id);
-            save();
-            showPDel(n);
+    rec.onerror = (event) => {
+        btn.style.backgroundColor = "";
+        console.log("Error: " + event.error);
+        
+        // AGAR URDU MEIN NETWORK ERROR AAYE TO AUTO-SWITCH TO ENGLISH
+        if(event.error === 'network' && rec.lang === 'ur-PK') {
+            console.log("Switching to English due to network...");
+            rec.lang = 'en-US';
+            rec.start();
         }
-    }
+    };
 
-    function renderHistory() {
-        let d = document.getElementById('historyDisplay');
-        d.innerHTML = history.length === 0 ? "<p>Koi history nahi hai.</p>" : "";
-        history.slice().reverse().forEach(h => {
-            d.innerHTML += `<div class="history-card">
-                <span class="history-tag">${h.type}</span><br>
-                <b>Customer:</b> ${h.cust}<br>
-                <b>Item:</b> ${h.p} | <b>Price:</b> ${h.pr}/-<br>
-                <small>Added: ${h.d} | Deleted: ${h.delTime}</small>
-            </div>`;
-        });
-    }
+    rec.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        input.value = text;
+    };
 
-    function save() {
-        localStorage.setItem('umairAuto_v11', JSON.stringify(db));
-        localStorage.setItem('umairAuto_HistV11', JSON.stringify(history));
-    }
-    renderHome();
+    rec.onend = () => {
+        btn.style.backgroundColor = "";
+        // Wapas Urdu par set kar dena taakay agli baar phir Urdu try kare
+        rec.lang = 'ur-PK'; 
+    };
 </script>
 </body>
 </html>
